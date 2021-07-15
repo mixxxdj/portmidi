@@ -1,0 +1,10 @@
+@PACKAGE_INIT@
+
+include(CMakeFindDependencyMacro)
+if(${CMAKE_SYSTEM_NAME} MATCHES "Linux")
+  find_dependency(ALSA)
+endif()
+
+include("${CMAKE_CURRENT_LIST_DIR}/PortMIDITargets.cmake")
+
+check_required_components(PortMIDI)
