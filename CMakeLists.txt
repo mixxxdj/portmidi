@@ -1,77 +1,102 @@
-# portmidi
-# Roger B. Dannenberg
-# 20 Sep 2009
+cmake_minimum_required(VERSION 3.0)
 
-cmake_minimum_required(VERSION 2.6)
+project(PortMIDI VERSION 235.0)
 
-if(UNIX)
-  # allow user to set Release or Debug
-  set(CMAKE_BUILD_TYPE Release CACHE STRING 
-      "Semicolon-separate list of supported configuration types")
-  # set default directories but don't override cached values...
-  set(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${CMAKE_CACHEFILE_DIR}/${CMAKE_BUILD_TYPE}
-      CACHE STRING "libraries go here")
-  set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY ${CMAKE_CACHEFILE_DIR}/${CMAKE_BUILD_TYPE}
-      CACHE STRING "libraries go here")
-  set(CMAKE_RUNTIME_OUTPUT_DIRECTORY 
-      ${CMAKE_CACHEFILE_DIR}/${CMAKE_BUILD_TYPE}
-      CACHE STRING "executables go here")
+option(BUILD_SHARED_LIBS "Build dynamic library" ON)
 
-else(UNIX)
-  # this does not seem to work for xcode:
-  set(CMAKE_CONFIGURATION_TYPES "Debug;Release" CACHE STRING 
-      "Semicolon-separate list of supported configuration types")
-endif(UNIX)
+add_library(PortTime porttime/porttime.c)
+target_include_directories(PortTime PUBLIC
+  $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
+  $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}>
+)
+set_target_properties(PortTime PROPERTIES OUTPUT_NAME porttime)
+set_target_properties(PortTime PROPERTIES
+  WINDOWS_EXPORT_ALL_SYMBOLS TRUE
+)
 
-#set(CMAKE_RELATIVE_PATHS ON CACHE STRING "avoid absolute paths" FORCE)
+add_library(PortMIDI pm_common/portmidi.c pm_common/pmutil.c)
+set_target_properties(PortMIDI PROPERTIES OUTPUT_NAME portmidi)
+set_target_properties(PortMIDI PROPERTIES
+  WINDOWS_EXPORT_ALL_SYMBOLS TRUE
+)
+target_include_directories(PortMIDI PUBLIC
+  $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
+  $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}>
+)
+target_include_directories(PortMIDI PRIVATE pm_common porttime)
 
-# Clear out the built-in C++ compiler and link flags for each of the 
-# unused configurations.
-set(CMAKE_CXX_FLAGS_MINSIZEREL "" CACHE INTERNAL "Unused")
-set(CMAKE_SHARED_LINKER_FLAGS_MINSIZEREL "" CACHE INTERNAL "Unused")
-set(CMAKE_MODULE_LINKER_FLAGS_MINSIZEREL "" CACHE INTERNAL "Unused")
-set(CMAKE_EXE_LINKER_FLAGS_MINSIZEREL "" CACHE INTERNAL "Unused")
-set(CMAKE_CXX_FLAGS_RELWITHDEBINFO "" CACHE INTERNAL "Unused")
-set(CMAKE_SHARED_LINKER_FLAGS_RELWITHDEBINFO "" CACHE INTERNAL "Unused")
-set(CMAKE_MODULE_LINKER_FLAGS_RELWITHDEBINFO "" CACHE INTERNAL "Unused")
-set(CMAKE_EXE_LINKER_FLAGS_RELWITHDEBINFO "" CACHE INTERNAL "Unused")
+# FreeBSD has a reimplementation of alsalib, so don't restrict the ALSA backend strictly to Linux.
+if(UNIX AND NOT APPLE)
+  find_package(ALSA REQUIRED)
+  target_sources(PortTime PRIVATE porttime/ptlinux.c)
+  target_sources(PortMIDI PRIVATE pm_linux/pmlinux.c pm_linux/pmlinuxalsa.c pm_linux/finddefault.c)
+  target_link_libraries(PortMIDI PRIVATE ALSA::ALSA)
+elseif(APPLE)
+  find_library(COREAUDIO_LIBRARY CoreAudio REQUIRED)
+  find_library(COREFOUNDATION_LIBRARY CoreFoundation REQUIRED)
+  find_library(COREMIDI_LIBRARY CoreMidi REQUIRED)
+  find_library(CORESERVICES_LIBRARY CoreServices REQUIRED)
 
-set(CMAKE_OSX_ARCHITECTURES i386 ppc x86_64 CACHE STRING "change to needed architecture for a smaller library" FORCE)
+  target_sources(PortTime PRIVATE porttime/ptmacosx_mach.c)
+  target_link_libraries(PortTime PRIVATE ${COREFOUNDATION_LIBRARY})
 
-PROJECT(portmidi)
+  target_sources(PortMIDI PRIVATE pm_mac/pmmac.c pm_mac/pmmacosxcm.c pm_mac/finddefault.c pm_mac/readbinaryplist.c)
+  target_link_libraries(PortMIDI PRIVATE ${COREAUDIO_LIBRARY} ${COREFOUNDATION_LIBRARY} ${COREMIDI_LIBRARY} ${CORESERVICES_LIBRARY})
+elseif(WIN32)
+  target_sources(PortTime PRIVATE porttime/ptwinmm.c)
+  target_link_libraries(PortTime PRIVATE winmm)
+  target_sources(PortMIDI PRIVATE pm_win/pmwin.c pm_win/pmwinmm.c)
+  target_link_libraries(PortMIDI PRIVATE winmm)
+else()
+  message(FATAL_ERROR "Operating system not supported.")
+endif()
 
-if(UNIX)
-  # Problem: if there was an old Debug build and you change
-  #  CMAKE_BUILD_TYPE to Release, then the OUTPUT_DIRECTORY's will
-  #  still be Debug. Try to fix this by checking if the DIRECTORY's
-  #  look wrong, and if so, force them to the defaults:
-  if(CMAKE_BUILD_TYPE MATCHES "Debug")
-    set(BAD_DIR "Release")
-  else(CMAKE_BUILD_TYPE MATCHES "Debug")
-    set(BAD_DIR "Debug")
-  endif(CMAKE_BUILD_TYPE MATCHES "Debug")
-  # use library as reference -- if you give it a non-BAD_DIR location
-  # then every other path is left alone
-  if(CMAKE_LIBRARY_OUTPUT_DIRECTORY MATCHES ${BAD_DIR})
-    set(CMAKE_RUNTIME_OUTPUT_DIRECTORY 
-        ${CMAKE_CACHEFILE_DIR}/${CMAKE_BUILD_TYPE}
-        CACHE STRING "executables go here" FORCE)
-    set(CMAKE_LIBRARY_OUTPUT_DIRECTORY 
-        ${CMAKE_CACHEFILE_DIR}/${CMAKE_BUILD_TYPE}
-        CACHE STRING "libraries go here" FORCE)
-    set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY 
-        ${CMAKE_CACHEFILE_DIR}/${CMAKE_BUILD_TYPE}
-        CACHE STRING "libraries go here" FORCE)
-  endif(CMAKE_LIBRARY_OUTPUT_DIRECTORY MATCHES ${BAD_DIR})
-endif(UNIX)
+target_link_libraries(PortMIDI PRIVATE PortTime)
 
-include_directories(pm_common porttime)
-add_subdirectory(pm_common)
+include(GNUInstallDirs)
+include(CMakePackageConfigHelpers)
 
-add_subdirectory(pm_test)
+# Library
+install(TARGETS PortMIDI PortTime
+  EXPORT PortMIDITargets
+  ARCHIVE DESTINATION "${CMAKE_INSTALL_LIBDIR}"
+  LIBRARY DESTINATION "${CMAKE_INSTALL_LIBDIR}"
+  RUNTIME DESTINATION "${CMAKE_INSTALL_BINDIR}"
+  INCLUDES DESTINATION "${CMAKE_INSTALL_INCLUDEDIR}"
+)
 
-add_subdirectory(pm_dylib)
+# Headers
+install(FILES
+  include/pmutil.h
+  include/portmidi.h
+  include/porttime.h
+  DESTINATION "${CMAKE_INSTALL_INCLUDEDIR}")
 
-# Cannot figure out how to make an xcode Java application with CMake
-add_subdirectory(pm_java)
+# pkgconfig
+configure_file(${CMAKE_CURRENT_SOURCE_DIR}/portmidi.pc.in
+  ${CMAKE_CURRENT_BINARY_DIR}/portmidi.pc @ONLY)
+install(FILES ${CMAKE_CURRENT_BINARY_DIR}/portmidi.pc DESTINATION "${CMAKE_INSTALL_LIBDIR}/pkgconfig")
 
+# CMake config
+set(PORTMIDI_INSTALL_CMAKEDIR "lib/cmake/PortMIDI")
+install(
+  EXPORT PortMIDITargets
+  FILE PortMIDITargets.cmake
+  NAMESPACE PortMIDI::
+  DESTINATION "${PORTMIDI_INSTALL_CMAKEDIR}"
+)
+configure_package_config_file(PortMIDIConfig.cmake.in
+  "${CMAKE_CURRENT_BINARY_DIR}/PortMIDIConfig.cmake"
+  INSTALL_DESTINATION "${PORTMIDI_INSTALL_CMAKEDIR}"
+)
+write_basic_package_version_file(
+  "${CMAKE_CURRENT_BINARY_DIR}/PortMIDIConfigVersion.cmake"
+  VERSION "${CMAKE_PROJECT_VERSION}"
+  COMPATIBILITY SameMajorVersion
+)
+install(
+  FILES
+    "${CMAKE_CURRENT_BINARY_DIR}/PortMIDIConfig.cmake"
+    "${CMAKE_CURRENT_BINARY_DIR}/PortMIDIConfigVersion.cmake"
+  DESTINATION "${PORTMIDI_INSTALL_CMAKEDIR}"
+)
