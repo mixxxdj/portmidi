@@ -4,7 +4,7 @@ project(PortMIDI VERSION 235.0)
 
 option(BUILD_SHARED_LIBS "Build dynamic library" ON)
 
-add_library(PortTime porttime/porttime.c)
+add_library(PortTime src/porttime/porttime.c)
 target_include_directories(PortTime PUBLIC
   $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
   $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}>
@@ -14,14 +14,17 @@ set_target_properties(PortTime PROPERTIES
   WINDOWS_EXPORT_ALL_SYMBOLS TRUE
 )
 
-add_library(PortMIDI src/common/portmidi.c src/common/pmutil.c)
+add_library(PortMIDI
+  src/portmidi/common/portmidi.c
+  src/portmidi/common/pmutil.c
+)
 set_target_properties(PortMIDI PROPERTIES OUTPUT_NAME portmidi)
 set_target_properties(PortMIDI PROPERTIES
   WINDOWS_EXPORT_ALL_SYMBOLS TRUE
 )
 target_include_directories(PortMIDI PUBLIC
   $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
-  $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/src/common>
+  $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/src/portmidi/common>
   $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}>
 )
 target_include_directories(PortMIDI PRIVATE pm_common porttime)
@@ -29,8 +32,11 @@ target_include_directories(PortMIDI PRIVATE pm_common porttime)
 # FreeBSD has a reimplementation of alsalib, so don't restrict the ALSA backend strictly to Linux.
 if(UNIX AND NOT APPLE)
   find_package(ALSA REQUIRED)
-  target_sources(PortTime PRIVATE porttime/ptlinux.c)
-  target_sources(PortMIDI PRIVATE src/linux/pmlinux.c src/linux/pmlinuxalsa.c src/linux/finddefault.c)
+  target_sources(PortTime PRIVATE src/porttime/ptlinux.c)
+  target_sources(PortMIDI PRIVATE
+    src/portmidi/linux/pmlinux.c
+    src/portmidi/linux/pmlinuxalsa.c
+    src/portmidi/linux/finddefault.c)
   target_link_libraries(PortMIDI PRIVATE ALSA::ALSA)
 elseif(APPLE)
   find_library(COREAUDIO_LIBRARY CoreAudio REQUIRED)
@@ -38,15 +44,21 @@ elseif(APPLE)
   find_library(COREMIDI_LIBRARY CoreMidi REQUIRED)
   find_library(CORESERVICES_LIBRARY CoreServices REQUIRED)
 
-  target_sources(PortTime PRIVATE porttime/ptmacosx_mach.c)
+  target_sources(PortTime PRIVATE src/porttime/ptmacosx_mach.c)
   target_link_libraries(PortTime PRIVATE ${COREAUDIO_LIBRARY} ${COREFOUNDATION_LIBRARY})
 
-  target_sources(PortMIDI PRIVATE src/mac/pmmac.c src/mac/pmmacosxcm.c src/mac/finddefault.c src/mac/readbinaryplist.c)
+  target_sources(PortMIDI PRIVATE
+    src/portmidi/mac/pmmac.c
+    src/portmidi/mac/pmmacosxcm.c
+    src/portmidi/mac/finddefault.c
+    src/portmidi/mac/readbinaryplist.c)
   target_link_libraries(PortMIDI PRIVATE ${COREAUDIO_LIBRARY} ${COREFOUNDATION_LIBRARY} ${COREMIDI_LIBRARY} ${CORESERVICES_LIBRARY})
 elseif(WIN32)
-  target_sources(PortTime PRIVATE porttime/ptwinmm.c)
+  target_sources(PortTime PRIVATE src/porttime/ptwinmm.c)
   target_link_libraries(PortTime PRIVATE winmm)
-  target_sources(PortMIDI PRIVATE src/windows/pmwin.c src/windows/pmwinmm.c)
+  target_sources(PortMIDI PRIVATE
+    src/portmidi/windows/pmwin.c
+    src/portmidi/windows/pmwinmm.c)
   target_link_libraries(PortMIDI PRIVATE winmm)
 else()
   message(FATAL_ERROR "Operating system not supported.")
