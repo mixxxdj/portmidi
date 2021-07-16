@@ -86,9 +86,9 @@ install(FILES
   DESTINATION "${CMAKE_INSTALL_INCLUDEDIR}")
 
 # pkgconfig
-configure_file(${CMAKE_CURRENT_SOURCE_DIR}/portmidi.pc.in
-  ${CMAKE_CURRENT_BINARY_DIR}/portmidi.pc @ONLY)
-install(FILES ${CMAKE_CURRENT_BINARY_DIR}/portmidi.pc DESTINATION "${CMAKE_INSTALL_LIBDIR}/pkgconfig")
+configure_file(${CMAKE_CURRENT_SOURCE_DIR}/packaging/portmidi.pc.in
+  ${CMAKE_CURRENT_BINARY_DIR}/packaging/portmidi.pc @ONLY)
+install(FILES ${CMAKE_CURRENT_BINARY_DIR}/packaging/portmidi.pc DESTINATION "${CMAKE_INSTALL_LIBDIR}/pkgconfig")
 
 # CMake config
 set(PORTMIDI_INSTALL_CMAKEDIR "lib/cmake/PortMIDI")
@@ -98,18 +98,18 @@ install(
   NAMESPACE PortMIDI::
   DESTINATION "${PORTMIDI_INSTALL_CMAKEDIR}"
 )
-configure_package_config_file(PortMIDIConfig.cmake.in
-  "${CMAKE_CURRENT_BINARY_DIR}/PortMIDIConfig.cmake"
+configure_package_config_file(packaging/PortMIDIConfig.cmake.in
+  "${CMAKE_CURRENT_BINARY_DIR}/packaging/PortMIDIConfig.cmake"
   INSTALL_DESTINATION "${PORTMIDI_INSTALL_CMAKEDIR}"
 )
 write_basic_package_version_file(
-  "${CMAKE_CURRENT_BINARY_DIR}/PortMIDIConfigVersion.cmake"
+  "${CMAKE_CURRENT_BINARY_DIR}/packaging/PortMIDIConfigVersion.cmake"
   VERSION "${CMAKE_PROJECT_VERSION}"
   COMPATIBILITY SameMajorVersion
 )
 install(
   FILES
-    "${CMAKE_CURRENT_BINARY_DIR}/PortMIDIConfig.cmake"
-    "${CMAKE_CURRENT_BINARY_DIR}/PortMIDIConfigVersion.cmake"
+    "${CMAKE_CURRENT_BINARY_DIR}/packaging/PortMIDIConfig.cmake"
+    "${CMAKE_CURRENT_BINARY_DIR}/packaging/PortMIDIConfigVersion.cmake"
   DESTINATION "${PORTMIDI_INSTALL_CMAKEDIR}"
 )
