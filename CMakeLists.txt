@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 3.0)
 
-project(PortMidi VERSION 235.0)
+project(PortMidi VERSION 235.1)
 
 option(BUILD_SHARED_LIBS "Build dynamic library" ON)
 
