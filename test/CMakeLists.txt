@@ -1,6 +1,6 @@
 macro(add_test name)
   add_executable(${name} ${name}.c)
-  target_link_libraries(${name} PRIVATE PortMIDI PortTime)
+  target_link_libraries(${name} PRIVATE PortMidi PortTime)
 endmacro(add_test)
 
 add_test(test)
