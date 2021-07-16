@@ -1,5 +1,10 @@
 /* CHANGELOG FOR PORTMIDI
  *
+ * 2021-06-16 Be
+ * - Converted from SVN to Git
+ * - Forked to Mixxx DJ Software organization: https://github.com/mixxxdj/portmidi/
+ * - Rewrote build system with modern CMake, added pkg-config and CMake config files
+ *
  * 19Oct09 Roger Dannenberg
  * - Changes dynamic library names from portmidi_d to portmidi to
  *   be backward-compatible with programs expecting a library by
