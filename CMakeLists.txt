@@ -14,13 +14,14 @@ set_target_properties(PortTime PROPERTIES
   WINDOWS_EXPORT_ALL_SYMBOLS TRUE
 )
 
-add_library(PortMIDI pm_common/portmidi.c pm_common/pmutil.c)
+add_library(PortMIDI src/common/portmidi.c src/common/pmutil.c)
 set_target_properties(PortMIDI PROPERTIES OUTPUT_NAME portmidi)
 set_target_properties(PortMIDI PROPERTIES
   WINDOWS_EXPORT_ALL_SYMBOLS TRUE
 )
 target_include_directories(PortMIDI PUBLIC
   $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
+  $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/src/common>
   $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}>
 )
 target_include_directories(PortMIDI PRIVATE pm_common porttime)
@@ -29,7 +30,7 @@ target_include_directories(PortMIDI PRIVATE pm_common porttime)
 if(UNIX AND NOT APPLE)
   find_package(ALSA REQUIRED)
   target_sources(PortTime PRIVATE porttime/ptlinux.c)
-  target_sources(PortMIDI PRIVATE pm_linux/pmlinux.c pm_linux/pmlinuxalsa.c pm_linux/finddefault.c)
+  target_sources(PortMIDI PRIVATE src/linux/pmlinux.c src/linux/pmlinuxalsa.c src/linux/finddefault.c)
   target_link_libraries(PortMIDI PRIVATE ALSA::ALSA)
 elseif(APPLE)
   find_library(COREAUDIO_LIBRARY CoreAudio REQUIRED)
@@ -40,12 +41,12 @@ elseif(APPLE)
   target_sources(PortTime PRIVATE porttime/ptmacosx_mach.c)
   target_link_libraries(PortTime PRIVATE ${COREAUDIO_LIBRARY} ${COREFOUNDATION_LIBRARY})
 
-  target_sources(PortMIDI PRIVATE pm_mac/pmmac.c pm_mac/pmmacosxcm.c pm_mac/finddefault.c pm_mac/readbinaryplist.c)
+  target_sources(PortMIDI PRIVATE src/mac/pmmac.c src/mac/pmmacosxcm.c src/mac/finddefault.c src/mac/readbinaryplist.c)
   target_link_libraries(PortMIDI PRIVATE ${COREAUDIO_LIBRARY} ${COREFOUNDATION_LIBRARY} ${COREMIDI_LIBRARY} ${CORESERVICES_LIBRARY})
 elseif(WIN32)
   target_sources(PortTime PRIVATE porttime/ptwinmm.c)
   target_link_libraries(PortTime PRIVATE winmm)
-  target_sources(PortMIDI PRIVATE pm_win/pmwin.c pm_win/pmwinmm.c)
+  target_sources(PortMIDI PRIVATE src/windows/pmwin.c src/windows/pmwinmm.c)
   target_link_libraries(PortMIDI PRIVATE winmm)
 else()
   message(FATAL_ERROR "Operating system not supported.")
