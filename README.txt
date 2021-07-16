@@ -1,20 +1,21 @@
-README for PortMidi
+PortMIDI is a cross platform (Windows, macOS, Linux, and BSDs
+which support alsalib) library for interfacing with operating
+systems' MIDI I/O APIs. It was started by Ross Bencina and
+Phil Burk, then maintained by Roger B. Dannenberg, and now
+maintained by the Mixxx DJ Software team.
 
-Roger B. Dannenberg
+---------------------- BUILDING ----------------------------
+PortMidi has no dependencies on Windows and macOS other than
+the operating system APIs. On Linux and BSD, the ALSA library
+development headers must be installed. On Debian and derived
+distributions, that is the libasound2-dev package. On Fedora
+and derived distributions, that is the alsa-lib-devel package.
 
-VERSION: please use "svn info" to get info.
+PortMidi uses the CMake build system. To build it, run:
 
-Documentation for PortMidi is found in pm_common/portmidi.h.
-
-Additional documentation:
-  - Windows: see pm_win/README_WIN.txt and pm_win/debugging_dlls.txt
-  - Linux: see pm_linux/README_LINUX.txt
-  - Mac OSX: see pm_mac/README_MAC.txt
-  - Common Lisp: see pm_cl/README_CL.txt
-  - Eclipse: see portmidi_cdt.zip (this was contributed as is; the dlls here
-        are now -- Sep 09 -- out of date. What is really needed is a script
-        to generate this release automatically so we can maintain it.)
-  - C-Sharp: see pm_csharp.zip (also contributed as is)
+$ cmake -DCMAKE_INSTALL_PREFIX=/where/you/want/to/install/to -S . -B build
+$ cmake --build build --parallel number-of-cpu-cores
+$ cmake --install build
 
 ---------- some notes on the design of PortMidi ----------
 
