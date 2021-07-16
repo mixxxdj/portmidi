@@ -18,6 +18,7 @@ add_library(PortMidi
   src/portmidi/common/portmidi.c
   src/portmidi/common/pmutil.c
 )
+target_link_libraries(PortMidi PUBLIC PortTime)
 set_target_properties(PortMidi PROPERTIES OUTPUT_NAME portmidi)
 set_target_properties(PortMidi PROPERTIES
   WINDOWS_EXPORT_ALL_SYMBOLS TRUE
@@ -63,8 +64,6 @@ elseif(WIN32)
 else()
   message(FATAL_ERROR "Operating system not supported.")
 endif()
-
-target_link_libraries(PortMidi PRIVATE PortTime)
 
 include(GNUInstallDirs)
 include(CMakePackageConfigHelpers)
