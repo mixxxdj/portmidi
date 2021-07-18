@@ -1,6 +1,8 @@
 cmake_minimum_required(VERSION 3.0)
-
 project(PortMidi VERSION 235.1)
+
+set(SOVERSION 1)
+set(LIBRARY_VERSION 1.0.${CMAKE_PROJECT_VERSION})
 
 option(BUILD_SHARED_LIBS "Build dynamic library" ON)
 
@@ -69,6 +71,16 @@ elseif(WIN32)
 else()
   message(FATAL_ERROR "Operating system not supported.")
 endif()
+
+set_target_properties(PortMidi PROPERTIES
+  SOVERSION ${SOVERSION}
+  VERSION ${LIBRARY_VERSION}
+)
+
+set_target_properties(PortTime PROPERTIES
+  SOVERSION ${SOVERSION}
+  VERSION ${LIBRARY_VERSION}
+)
 
 include(GNUInstallDirs)
 include(CMakePackageConfigHelpers)
