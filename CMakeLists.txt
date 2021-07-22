@@ -35,6 +35,20 @@ if(DEBUGMESSAGES)
   target_compile_definitions(PortMidi PRIVATE DEBUG)
 endif()
 
+option(CHECKERRORS
+"Insert a check for error return values at the end of each PortMidi function.
+If an error is encountered, a text message is printed using printf(), the user
+is asked to type ENTER, and then exit(-1) is called to clean up and terminate
+the program.
+
+You should not use PM_CHECK_ERRORS if printf() does not work (e.g. this is not
+a console application under Windows, or there is no visible console on some
+other OS), and you should not use CHECKERRORS if you intend to recover from
+errors rather than abruptly terminate the program." OFF)
+if(CHECKERRORS)
+  target_compile_definitions(PortMidi PRIVATE PM_CHECK_ERRORS)
+endif()
+
 # FreeBSD has a reimplementation of alsalib, so don't restrict the ALSA backend strictly to Linux.
 if(UNIX AND NOT APPLE)
   find_package(ALSA REQUIRED)
