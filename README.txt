@@ -68,6 +68,9 @@ in Windows, there are no error codes recorded in callbacks.
 
 DEBUGGING
 
+Debugging messages can be enabled by passing `-DDEBUGMESSAGES=ON`
+to the CMake configure step.
+
 If you are building a console application for research, we suggest
 compiling with the option PM_CHECK_ERRORS. This will insert a
 check for error return values at the end of each PortMidi
@@ -80,6 +83,3 @@ You should not use PM_CHECK_ERRORS if printf() does not work
 is no visible console on some other OS), and you should not use
 PM_CHECK_ERRORS if you intend to recover from errors rather than
 abruptly terminate the program.
-
-The Windows version (and perhaps others) also offers a DEBUG
-compile-time option. See README_WIN.txt.
