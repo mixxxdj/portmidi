@@ -30,6 +30,11 @@ target_include_directories(PortMidi PUBLIC
 )
 target_include_directories(PortMidi PRIVATE pm_common porttime)
 
+option(DEBUGMESSAGES "Print debugging messages (not implemented on Linux)" OFF)
+if(DEBUGMESSAGES)
+  target_compile_definitions(PortMidi PRIVATE DEBUG)
+endif()
+
 # FreeBSD has a reimplementation of alsalib, so don't restrict the ALSA backend strictly to Linux.
 if(UNIX AND NOT APPLE)
   find_package(ALSA REQUIRED)
