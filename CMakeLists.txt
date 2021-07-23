@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.0)
-project(PortMidi VERSION 235.1)
+project(PortMidi VERSION 236)
 
 set(SOVERSION 1)
 set(LIBRARY_VERSION 1.0.${CMAKE_PROJECT_VERSION})
