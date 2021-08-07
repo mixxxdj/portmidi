@@ -1,24 +1,24 @@
 /* ptlinux.c -- portable timer implementation for linux */
 
 
-/* IMPLEMENTATION NOTES (by Mark Nelson): 
+/* IMPLEMENTATION NOTES (by Mark Nelson):
 
 Unlike Windows, Linux has no system call to request a periodic callback,
 so if Pt_Start() receives a callback parameter, it must create a thread
 that wakes up periodically and calls the provided callback function.
-If running as superuser, use setpriority() to renice thread to -20.  
+If running as superuser, use setpriority() to renice thread to -20.
 One could also set the timer thread to a real-time priority (SCHED_FIFO
-and SCHED_RR), but this is dangerous for This is necessary because  
+and SCHED_RR), but this is dangerous for This is necessary because
 if the callback hangs it'll never return. A more serious reason
-is that the current scheduler implementation busy-waits instead 
-of sleeping when realtime threads request a sleep of <=2ms (as a way 
-to get around the 10ms granularity), which means the thread would never 
+is that the current scheduler implementation busy-waits instead
+of sleeping when realtime threads request a sleep of <=2ms (as a way
+to get around the 10ms granularity), which means the thread would never
 let anyone else on the CPU.
 
 CHANGE LOG
 
 18-Jul-03 Roger Dannenberg -- Simplified code to set priority of timer
-            thread. Simplified implementation notes. 
+            thread. Simplified implementation notes.
 
 */
 /* stdlib, stdio, unistd, and sys/types were added because they appeared
@@ -31,14 +31,13 @@ CHANGE LOG
 #include "porttime.h"
 #include "sys/time.h"
 #include "sys/resource.h"
-#include "sys/timeb.h"
 #include "pthread.h"
 
 #define TRUE 1
 #define FALSE 0
 
 static int time_started_flag = FALSE;
-static struct timeb time_offset = {0, 0, 0, 0};
+static struct timespec time_offset = {0, 0};
 static pthread_t pt_thread_pid;
 static int pt_thread_created = FALSE;
 
@@ -79,17 +78,17 @@ static void *Pt_CallbackProc(void *p)
 PtError Pt_Start(int resolution, PtCallback *callback, void *userData)
 {
     if (time_started_flag) return ptNoError;
-    ftime(&time_offset); /* need this set before process runs */
+    clock_gettime(CLOCK_MONOTONIC, &time_offset); /* need this set before process runs */
     if (callback) {
         int res;
-        pt_callback_parameters *parms = (pt_callback_parameters *) 
+        pt_callback_parameters *parms = (pt_callback_parameters *)
             malloc(sizeof(pt_callback_parameters));
         if (!parms) return ptInsufficientMemory;
         parms->id = pt_callback_proc_id;
         parms->resolution = resolution;
         parms->callback = callback;
         parms->userData = userData;
-        res = pthread_create(&pt_thread_pid, NULL, 
+        res = pthread_create(&pt_thread_pid, NULL,
                              Pt_CallbackProc, parms);
         if (res != 0) return ptHostError;
         pt_thread_created = TRUE;
@@ -120,12 +119,12 @@ int Pt_Started()
 
 PtTimestamp Pt_Time()
 {
-    long seconds, milliseconds;
-    struct timeb now;
-    ftime(&now);
-    seconds = now.time - time_offset.time;
-    milliseconds = now.millitm - time_offset.millitm;
-    return seconds * 1000 + milliseconds;
+    long seconds, nanoseconds;
+    struct timespec now;
+    clock_gettime(CLOCK_MONOTONIC, &now);
+    seconds = now.tv_sec - time_offset.tv_sec;
+    nanoseconds = now.tv_nsec - time_offset.tv_nsec;
+    return seconds * 1000 + nanoseconds / 1000000;
 }
 
 
@@ -133,6 +132,3 @@ void Pt_Sleep(int32_t duration)
 {
     usleep(duration * 1000);
 }
-
-
-

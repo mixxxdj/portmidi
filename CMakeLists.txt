@@ -53,13 +53,23 @@ endif()
 
 # FreeBSD has a reimplementation of alsalib, so don't restrict the ALSA backend strictly to Linux.
 if(UNIX AND NOT APPLE)
-  find_package(ALSA REQUIRED)
-  target_sources(PortTime PRIVATE src/porttime/ptlinux.c)
-  target_sources(PortMidi PRIVATE
-    src/portmidi/linux/pmlinux.c
-    src/portmidi/linux/pmlinuxalsa.c
-    src/portmidi/linux/finddefault.c)
-  target_link_libraries(PortMidi PRIVATE ALSA::ALSA)
+  if(ALSA_SUPPORT)
+    find_package(ALSA REQUIRED)
+    target_sources(PortTime PRIVATE src/porttime/ptlinux.c)
+    target_sources(PortMidi PRIVATE
+      src/portmidi/linux/pmlinux.c
+      src/portmidi/linux/pmlinuxalsa.c
+      src/portmidi/linux/finddefault.c)
+    target_link_libraries(PortMidi PRIVATE ALSA::ALSA)
+  elseif(SNDIO_SUPPORT)
+    find_library(SNDIO_LIBRARY sndio REQUIRED)
+    target_sources(PortTime PRIVATE src/porttime/ptlinux.c)
+    target_sources(PortMidi PRIVATE
+      src/portmidi/freebsd/pmfreebsd.c
+      src/portmidi/freebsd/pmfreebsdsndio.c)
+    target_link_libraries(PortMidi PRIVATE ${SNDIO_LIBRARY})
+    set(SNDIO_LINK "-lsndio")
+  endif()
 elseif(APPLE)
   find_library(COREAUDIO_LIBRARY CoreAudio REQUIRED)
   find_library(COREFOUNDATION_LIBRARY CoreFoundation REQUIRED)

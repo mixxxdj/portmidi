@@ -6,5 +6,5 @@ Name: portmidi
 Description: PortMidi is a cross platform library for accessing operating systems' MIDI APIs
 Version: @CMAKE_PROJECT_VERSION@
 URL: https://github.com/mixxxdj/portmidi
-Libs: -L${libdir} -lportmidi -lporttime
+Libs: -L${libdir} -lportmidi -lporttime @SNDIO_LINK@
 Cflags: -I${includedir}
