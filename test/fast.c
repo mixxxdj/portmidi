@@ -7,6 +7,9 @@
  * Modified 8 Aug 2017 with -n to send expired timestamps
  * to test a theory about why Linux ALSA hangs in Audacity.
  *
+ * Modified 9 Aug 2017 with -m, -p to test when timestamps are
+ * wrapping from negative to positive or positive to negative.
+ *
  * Roger B. Dannenberg, Aug 2017
  */
 
@@ -17,7 +20,6 @@
 #include "string.h"
 #include "assert.h"
 
-#define OUTPUT_BUFFER_SIZE 0
 #define DRIVER_INFO NULL
 #define TIME_START Pt_Start(1, 0, 0) /* timer started w/millisecond accuracy */
 
@@ -36,14 +38,15 @@ int32_t msgrate = 0;
 int deviceno = -9999;
 int duration = 0;
 int expired_timestamps = FALSE;
+int use_timeoffset = 0;
 
 /* read a number from console */
 /**/
-int get_number(char *prompt)
+int get_number(const char *prompt)
 {
     char line[STRING_MAX];
     int n = 0, i;
-    printf("%s", prompt);
+    fputs(prompt, stdout);
     while (n != 1) {
         n = scanf("%d", &i);
         fgets(line, STRING_MAX, stdin);
@@ -52,36 +55,70 @@ int get_number(char *prompt)
 }
 
 
+/* get_time -- the time reference. Normally, this will be the default
+ *    time, Pt_Time(), but if you use the -p or -m option, the time 
+ *    reference will start at an offset of -10s for -m, or 
+ *    maximum_time - 10s for -p, so that we can observe what happens
+ *    with negative time or when time changes sign or wraps (by 
+ *    generating output for more than 10s).
+ */
+PmTimestamp get_time(void *info)
+{
+    PmTimestamp now = (PmTimestamp) (Pt_Time() + use_timeoffset);
+    return now;
+}
+
+
 void fast_test()
 {
     PmStream * midi;
-	char line[80];
-    PmEvent buffer[16];
+    char line[STRING_MAX];
+    int pause = FALSE;  /* pause if this is a virtual output port */
+    PmError err;
 
     /* It is recommended to start timer before PortMidi */
     TIME_START;
 
-	/* open output device */
-    Pm_OpenOutput(&midi, 
-                  deviceno, 
-                  DRIVER_INFO,
-                  OUTPUT_BUFFER_SIZE, 
-                  (int32_t (*)(void *)) Pt_Time,
-                  NULL,
-                  latency);
+    /* open output device */
+    /* output buffer size should be a little more than
+       msgrate * latency / 1000. PortMidi will guarantee
+       a minimum of latency / 2 */
+    int buffer_size = msgrate * latency / 900;
+    if (deviceno == Pm_CountDevices()) {
+        err = Pm_CreateVirtualOutput(&midi, "fast", NULL, DRIVER_INFO,
+                                     buffer_size, get_time, NULL, latency);
+        pause = TRUE;
+    } else {
+        err = Pm_OpenOutput(&midi, deviceno, DRIVER_INFO, buffer_size,
+                            get_time, NULL, latency);
+    }
+    if (err == pmHostError) {
+        Pm_GetHostErrorText(line, STRING_MAX);
+        printf("PortMidi found host error...\n  %s\n", line);
+        goto done;
+    } else if (err < 0) {
+        printf("PortMidi call failed...\n  %s\n", Pm_GetErrorText(err));
+        goto done;
+    }
     printf("Midi Output opened with %ld ms latency.\n", (long) latency);
-
+    if (pause) {
+        char line[STRING_MAX];
+        printf("Pausing so you can connect a receiver to the newly created\n"
+               "    \"fast\" port. Type ENTER to proceed: ");
+        fgets(line, STRING_MAX, stdin);
+    }
     /* wait a sec after printing previous line */
-    PmTimestamp start = Pt_Time() + 1000;
-    while (start > Pt_Time()) {
+    PmTimestamp start = get_time(NULL) + 1000;
+    while (start > get_time(NULL)) {
         Sleep(10);
     }
     printf("sending output...\n");
     fflush(stdout); /* make sure message goes to console */
 
     /* every 10ms send on/off pairs at timestamps set to current time */
-    PmTimestamp now = Pt_Time();
+    PmTimestamp now = get_time(NULL);
     int msgcnt = 0;
+    int polling_count = 0;
     int pitch = 60;
     int printtime = 1000;
     /* if expired_timestamps, we want to send timestamps that have
@@ -92,30 +129,39 @@ void fast_test()
     if (expired_timestamps) {
         now = now - 2 * latency;
     }
-    while (now - start < duration *  1000) {
+
+    while (((PmTimestamp) (now - start)) < duration *  1000 || pitch != 60) {
         /* how many messages do we send? Total should be
          *     (elapsed * rate) / 1000
          */
-        int send_total = ((now - start) * msgrate) / 1000;
-        while (msgcnt < send_total) {
-            Pm_WriteShort(midi, now, Pm_Message(0x90, pitch, 100));
-            Pm_WriteShort(midi, now, Pm_Message(0x90, pitch, 0));
-            msgcnt += 2;
-            /* play 60, 61, 62, ... 71, then wrap back to 60, 61, ... */
-            pitch = (pitch - 59) % 12 + 60;
-            if (now - start >= printtime) {
-                printf("%d at %dms\n", msgcnt, now - start);
+        int send_total = (((PmTimestamp) ((now - start))) * msgrate) / 1000;
+        /* always send until pitch would be 60 so if we run again, the
+           next pitch (60) will be expected */
+        if (msgcnt < send_total) {
+            if ((msgcnt & 1) == 0) {
+                Pm_WriteShort(midi, now, Pm_Message(0x90, pitch, 100));
+            } else {
+                Pm_WriteShort(midi, now, Pm_Message(0x90, pitch, 0));
+                /* play 60, 61, 62, ... 71, then wrap back to 60, 61, ... */
+                pitch = (pitch - 59) % 12 + 60;
+            }
+            msgcnt += 1;
+            if (((PmTimestamp) (now - start)) >= printtime) {
+                printf("%d at %dms, polling count %d\n", msgcnt, now - start,
+                       polling_count);
                 fflush(stdout); /* make sure message goes to console */
                 printtime += 1000; /* next msg in 1s */
             }
         }
-        now = Pt_Time();
+        now = get_time(NULL);
+        polling_count++;
     }
     /* close device (this not explicitly needed in most implementations) */
     printf("ready to close and terminate... (type RETURN):");
     fgets(line, STRING_MAX, stdin);
 	
     Pm_Close(midi);
+  done:
     Pm_Terminate();
     printf("done closing and terminating...\n");
 }
@@ -123,22 +169,24 @@ void fast_test()
 
 void show_usage()
 {
-    printf("Usage: test [-h] %s\nwhere %s\n%s\n%s\n%s\n",
-           "[-l latency] [-r rate] [-d device] [-s dur] [-n]",
-           "latency is in ms, rate is messages per second,",
-           "device is the PortMidi device number,",
-           "dur is the length of the test in seconds, and",
-           "-n means send timestamps in the past, -h means help.");
+    printf("Usage: fast [-h] [-l latency] [-r rate] [-d device] [-s dur] "
+           "[-n] [-p] [-m]\n"
+           ", where latency is in ms,\n"
+           "        rate is messages per second,\n"
+           "        device is the PortMidi device number,\n"
+           "        dur is the length of the test in seconds,\n"
+           "        -n means send timestamps in the past,\n"
+           "        -p means use a large positive time offset,\n"
+           "        -m means use a large negative time offset, and\n"
+           "        -h means help.\n");
 }
 
 int main(int argc, char *argv[])
 {
     int default_in;
     int default_out;
-    int i = 0, n = 0;
-    char line[STRING_MAX];
-    int test_input = 0, test_output = 0, test_both = 0, somethingStupid = 0;
-    int stream_test = 0;
+    char *deflt;
+    int i = 0;
     int latency_valid = FALSE;
     int rate_valid = FALSE;
     int device_valid = FALSE;
@@ -165,14 +213,24 @@ int main(int argc, char *argv[])
                 msgrate = atoi(argv[i]);
                 printf("Rate will be %d messages/second\n", msgrate);
                 rate_valid = TRUE;
+            } else if (strcmp(argv[i], "-d") == 0) {
+                i = i + 1;
+                deviceno = atoi(argv[i]);
+                printf("Device will be %d\n", deviceno);
             } else if (strcmp(argv[i], "-s") == 0) {
                 i = i + 1;
                 duration = atoi(argv[i]);
-                printf("Duration will be %d seconds\n", msgrate);
+                printf("Duration will be %d seconds\n", duration);
                 dur_valid = TRUE;
             } else if (strcmp(argv[i], "-n") == 0) {
                 printf("Sending expired timestamps (-n)\n");
                 expired_timestamps = TRUE;
+            } else if (strcmp(argv[i], "-p") == 0) {
+                printf("Time offset set to 2147473648 (-p)\n");
+                use_timeoffset = 2147473648;
+            } else if (strcmp(argv[i], "-m") == 0) {
+                printf("Time offset set to -10000 (-m)\n");
+                use_timeoffset = -10000;
             } else {
                 show_usage();
             }
@@ -197,16 +255,28 @@ int main(int argc, char *argv[])
     default_in = Pm_GetDefaultInputDeviceID();
     default_out = Pm_GetDefaultOutputDeviceID();
     for (i = 0; i < Pm_CountDevices(); i++) {
-        char *deflt;
         const PmDeviceInfo *info = Pm_GetDeviceInfo(i);
         if (info->output) {
             printf("%d: %s, %s", i, info->interf, info->name);
-            deflt = (i == deviceno ? "selected " :
-                      (i == default_out ? "default " : ""));
-            printf(" (%soutput)", deflt);
-            printf("\n");
+            if (i == deviceno) {
+                device_valid = TRUE;
+                deflt = "selected ";
+            } else if (i == default_out) {
+                deflt = "default ";
+            } else {
+                deflt = "";
+            }                      
+            printf(" (%soutput)\n", deflt);
         }
     }
+    printf("%d: Create virtual port named \"fast\"", i);
+    if (i == deviceno) {
+        device_valid = TRUE;
+        deflt = "selected ";
+    } else {
+        deflt = "";
+    }        
+    printf(" (%soutput)\n", deflt);
     
     if (!device_valid) {
         deviceno = get_number("Output device number: ");

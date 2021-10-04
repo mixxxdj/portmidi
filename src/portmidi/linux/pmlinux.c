@@ -14,8 +14,9 @@
 #include "portmidi.h"
 #include "pmutil.h"
 #include "pminternal.h"
-
+#include "finddefault.h"
 #include "pmlinuxalsa.h"
+
 PmDeviceID pm_default_input_device_id = -1;
 PmDeviceID pm_default_output_device_id = -1;
 
@@ -26,7 +27,7 @@ void pm_init()
      * are working properly other than by looking at the list of available
      * devices.
      */
-	pm_linuxalsa_init();
+    pm_linuxalsa_init();
     // this is set when we return to Pm_Initialize, but we need it
     // now in order to (successfully) call Pm_CountDevices()
     pm_initialized = TRUE;      
@@ -40,7 +41,7 @@ void pm_init()
 
 void pm_term(void)
 {
-        pm_linuxalsa_term();
+    pm_linuxalsa_term();
 }
 
 PmDeviceID Pm_GetDefaultInputDeviceID() { 
