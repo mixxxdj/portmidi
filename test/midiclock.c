@@ -24,7 +24,7 @@ typedef int boolean;
 
 #define OUTPUT_BUFFER_SIZE 0
 #define DRIVER_INFO NULL
-#define TIME_PROC ((int32_t (*)(void *)) Pt_Time)
+#define TIME_PROC ((PmTimeProcPtr) Pt_Time)
 #define TIME_INFO NULL
 #define LATENCY 0
 #define TIME_START Pt_Start(1, 0, 0) /* timer started w/millisecond accuracy */
@@ -163,11 +163,11 @@ void timer_poll(PtTimestamp timestamp, void *userData)
 
 /* read a number from console */
 /**/
-int get_number(char *prompt)
+int get_number(const char *prompt)
 {
     char line[STRING_MAX];
     int n = 0, i;
-    printf(prompt);
+    fputs(prompt, stdout);
     while (n != 1) {
         n = scanf("%d", &i);
         fgets(line, STRING_MAX, stdin);
@@ -256,12 +256,12 @@ int main(int argc, char **argv)
     err = Pm_OpenOutput(&midi, outp, DRIVER_INFO, OUTPUT_BUFFER_SIZE, 
                         TIME_PROC, TIME_INFO, LATENCY);
     if (err) {
-        printf(Pm_GetErrorText(err));
+        puts(Pm_GetErrorText(err));
         goto error_exit_no_device;
     }
     active = true;
 
-    printf("Type RETURN to start MIDI CLOCK:\n");
+    printf("Type ENTER to start MIDI CLOCK:\n");
     if (!fgets(s, STRING_MAX, stdin)) goto error_exit;
     send_start_stop = true; /* send START and then CLOCKs */
 
