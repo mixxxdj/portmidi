@@ -32,7 +32,12 @@ jobs:
       run: sudo apt install -y libasound2-dev
       if: runner.os == 'Linux'
     - name: Configure
-      run: cmake -DCMAKE_INSTALL_PREFIX=${{ matrix.install_dir }} ${{ matrix.cmake_extras }} -S . -B build
+      run: >
+        cmake
+        -DCMAKE_INSTALL_PREFIX=${{ matrix.install_dir }}
+        -DBUILD_TESTING=ON
+        ${{ matrix.cmake_extras }}
+        -S . -B build
     - name: Build
       run: cmake --build build ${{ matrix.cmake_config }}
       env:
